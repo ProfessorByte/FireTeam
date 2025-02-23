@@ -1,60 +1,54 @@
-import { StyleSheet, TouchableOpacity, View, Platform } from "react-native";
+import { StyleSheet, TouchableOpacity, View } from "react-native";
 import { useCallback } from "react";
-import Colors from "../../constants/Colors";
-import * as Haptics from "expo-haptics";
-import { ThemedText } from "../../components/ThemedText";
-import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Animated, {
-  withSpring,
-  useAnimatedStyle,
-  useSharedValue,
-} from "react-native-reanimated";
+import { ThemedText } from "../../components/ThemedText";
+import * as Haptics from "expo-haptics";
+import { AlertModal } from "../../components/AlertModal";
+import { useNetwork } from "../../context/NetworkContext";
+import { Ionicons } from "@expo/vector-icons";
+import Colors from "../../constants/Colors";
 
 export default function AlertScreen() {
   const insets = useSafeAreaInsets();
-  const scale = useSharedValue(1);
+  const { sendAlert, showAlert, alertSender, dismissAlert, isConnected } =
+    useNetwork();
 
-  const handlePressIn = useCallback(() => {
-    scale.value = withSpring(0.95);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-  }, []);
-
-  const handlePressOut = useCallback(() => {
-    scale.value = withSpring(1);
-  }, []);
-
-  const handlePress = useCallback(() => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    // TODO: Implement alert functionality
-  }, []);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
+  const handleAlert = useCallback(async () => {
+    // Vibración inmediata al tocar
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    sendAlert();
+  }, [sendAlert]);
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + 16 }]}>
-      <ThemedText style={styles.title}>FireTeam</ThemedText>
-
-      <Animated.View style={[styles.buttonContainer, animatedStyle]}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      {isConnected ? (
         <TouchableOpacity
-          style={styles.button}
-          onPressIn={handlePressIn}
-          onPressOut={handlePressOut}
-          onPress={handlePress}
-          activeOpacity={0.9}
+          style={styles.alertButton}
+          onPress={handleAlert}
+          activeOpacity={0.8}
         >
-          <View style={styles.buttonContent}>
-            <Ionicons name="warning" size={64} color="#fff" />
-            <ThemedText style={styles.buttonText}>ALERTA</ThemedText>
-          </View>
+          <Ionicons name="warning" size={64} color="#FFF" />
+          <ThemedText style={styles.alertText}>
+            Presiona para enviar una alerta
+          </ThemedText>
+          <ThemedText style={styles.alertSubtext}>
+            Se notificará a todos los usuarios conectados
+          </ThemedText>
         </TouchableOpacity>
-      </Animated.View>
+      ) : (
+        <View style={styles.noWifiContainer}>
+          <Ionicons name="wifi-outline" size={64} color="#666" />
+          <ThemedText style={styles.noWifiText}>
+            Conéctate a una red WiFi para poder enviar alertas
+          </ThemedText>
+        </View>
+      )}
 
-      <ThemedText style={styles.helpText}>
-        Presiona el botón para enviar una alerta de emergencia
-      </ThemedText>
+      <AlertModal
+        visible={showAlert}
+        userName={alertSender}
+        onClose={dismissAlert}
+      />
     </View>
   );
 }
@@ -62,53 +56,38 @@ export default function AlertScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#000",
+  },
+  alertButton: {
+    flex: 1,
+    backgroundColor: Colors.secondary,
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "center",
     padding: 20,
-    paddingBottom: Platform.OS === "ios" ? 120 : 100,
   },
-  title: {
-    fontSize: 32,
+  alertText: {
+    fontSize: 24,
     fontWeight: "bold",
-    marginTop: 16,
-    marginBottom: 24,
-    lineHeight: 40,
+    color: "#FFF",
+    textAlign: "center",
+    marginTop: 24,
   },
-  buttonContainer: {
+  alertSubtext: {
+    fontSize: 16,
+    color: "rgba(255,255,255,0.8)",
+    textAlign: "center",
+    marginTop: 8,
+  },
+  noWifiContainer: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
+    padding: 20,
   },
-  button: {
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-    backgroundColor: Colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: Colors.primary,
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  buttonContent: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  buttonText: {
-    color: "#fff",
-    fontSize: 24,
-    fontWeight: "bold",
-    marginTop: 12,
-  },
-  helpText: {
-    fontSize: 16,
+  noWifiText: {
+    fontSize: 18,
     textAlign: "center",
-    opacity: 0.7,
-    marginBottom: 20,
+    opacity: 0.6,
+    marginTop: 16,
   },
 });

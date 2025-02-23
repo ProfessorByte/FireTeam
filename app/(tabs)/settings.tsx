@@ -14,6 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { useNetwork } from "../../context/NetworkContext";
+import { AlertModal } from "../../components/AlertModal";
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();

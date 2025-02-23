@@ -9,6 +9,7 @@ import React, {
 import * as Network from "expo-network";
 import * as Notifications from "expo-notifications";
 import * as Haptics from "expo-haptics";
+import { Audio } from "expo-av";
 import NetInfo, {
   NetInfoStateType,
   NetInfoState,
@@ -40,6 +41,9 @@ interface NetworkContextType {
   sendAlert: () => Promise<void>;
   connectedUsers: ConnectedUser[];
   reconnect: () => Promise<void>;
+  showAlert: boolean;
+  alertSender: string;
+  dismissAlert: () => void;
 }
 
 const NetworkContext = createContext<NetworkContextType | undefined>(undefined);
@@ -87,15 +91,40 @@ const getNetworkSSID = (state: NetInfoState): string | null => {
 
 export function NetworkProvider({ children }: { children: React.ReactNode }) {
   const broadcastTimer = useRef<NodeJS.Timeout | null>(null);
+  const alertSound = useRef<Audio.Sound>();
   const [userName, setUserName] = useState<string>("");
   const [isConnected, setIsConnected] = useState(false);
   const [connectedUsers, setConnectedUsers] = useState<ConnectedUser[]>([]);
+  const [showAlert, setShowAlert] = useState(false);
+  const [alertSender, setAlertSender] = useState("");
   const [networkState, setNetworkState] = useState<NetworkState>({
     isWiFi: false,
     ssid: null,
     strength: 0,
     isInternetReachable: false,
   });
+
+  // Load alert sound
+  useEffect(() => {
+    const loadSound = async () => {
+      try {
+        const { sound } = await Audio.Sound.createAsync(
+          require("../assets/sounds/alert.mp3")
+        );
+        alertSound.current = sound;
+      } catch (error) {
+        console.error("Error loading sound:", error);
+      }
+    };
+
+    loadSound();
+
+    return () => {
+      if (alertSound.current) {
+        alertSound.current.unloadAsync();
+      }
+    };
+  }, []);
 
   // Load saved username
   useEffect(() => {
@@ -128,66 +157,7 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
   }, [cleanupInactiveUsers]);
 
   // Network monitoring and device discovery
-  useEffect(() => {
-    const updateNetworkInfo = async () => {
-      try {
-        const netInfo = await NetInfo.fetch();
-        const ipAddress = await Network.getIpAddressAsync();
-        const isWifi = netInfo.type === NetInfoStateType.wifi;
-        const signalStrength = calculateSignalStrength(netInfo);
-
-        setIsConnected(isWifi);
-        setNetworkState({
-          isWiFi: isWifi,
-          ssid: getNetworkSSID(netInfo),
-          strength: signalStrength,
-          isInternetReachable: netInfo.isInternetReachable || false,
-          ipAddress,
-        });
-
-        if (isWifi && userName) {
-          // Update our own status
-          setConnectedUsers((prev) => {
-            const filtered = prev.filter((u) => u.deviceId !== DEVICE_ID);
-            return [
-              ...filtered,
-              {
-                name: userName,
-                signalStrength,
-                lastSeen: Date.now(),
-                deviceId: DEVICE_ID,
-                isOnline: true,
-                ipAddress,
-              },
-            ];
-          });
-        }
-      } catch (error) {
-        console.error("Network update error:", error);
-      }
-    };
-
-    const initialize = async () => {
-      await updateNetworkInfo();
-      broadcastTimer.current = setInterval(
-        updateNetworkInfo,
-        BROADCAST_INTERVAL
-      );
-    };
-
-    if (userName) {
-      initialize();
-    }
-
-    return () => {
-      if (broadcastTimer.current) {
-        clearInterval(broadcastTimer.current);
-        broadcastTimer.current = null;
-      }
-    };
-  }, [userName]);
-
-  const reconnect = async () => {
+  const updateNetworkInfo = useCallback(async () => {
     try {
       const netInfo = await NetInfo.fetch();
       const ipAddress = await Network.getIpAddressAsync();
@@ -204,53 +174,140 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (isWifi && userName) {
-        await notifyOthers("connected");
+        // Update our own status
+        setConnectedUsers((prev) => {
+          const filtered = prev.filter((u) => u.deviceId !== DEVICE_ID);
+          return [
+            ...filtered,
+            {
+              name: userName,
+              signalStrength,
+              lastSeen: Date.now(),
+              deviceId: DEVICE_ID,
+              isOnline: true,
+              ipAddress,
+            },
+          ];
+        });
+      }
+    } catch (error) {
+      console.error("Network update error:", error);
+    }
+  }, [userName]);
+
+  // Initial network state and listener
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      setIsConnected(state.type === NetInfoStateType.wifi);
+    });
+
+    // Initial check
+    updateNetworkInfo();
+
+    return () => {
+      unsubscribe();
+    };
+  }, [updateNetworkInfo]);
+
+  // Periodic updates when user is set
+  useEffect(() => {
+    if (!userName) return;
+
+    updateNetworkInfo();
+    broadcastTimer.current = setInterval(updateNetworkInfo, BROADCAST_INTERVAL);
+
+    return () => {
+      if (broadcastTimer.current) {
+        clearInterval(broadcastTimer.current);
+        broadcastTimer.current = null;
+      }
+    };
+  }, [userName, updateNetworkInfo]);
+
+  const playAlertSound = useCallback(async () => {
+    try {
+      if (alertSound.current) {
+        await alertSound.current.setPositionAsync(0);
+        await alertSound.current.playAsync();
+      }
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } catch (error) {
+      console.error("Error playing alert sound:", error);
+    }
+  }, []);
+
+  const showNotification = useCallback(async (message: string) => {
+    try {
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: "FireTeam",
+          body: message,
+          sound: true,
+        },
+        trigger: null,
+      });
+    } catch (error) {
+      console.error("Error showing notification:", error);
+    }
+  }, []);
+
+  const sendAlert = useCallback(async () => {
+    if (!userName) return;
+
+    // Primero mostramos la alerta localmente
+    setShowAlert(true);
+    setAlertSender(userName);
+
+    // Reproducimos el sonido y vibramos
+    await playAlertSound();
+
+    // Notificamos a otros usuarios
+    await showNotification(`¡ALERTA! enviada por ${userName}`);
+
+    // Programamos el cierre automático
+    setTimeout(() => {
+      setShowAlert(false);
+      setAlertSender("");
+    }, 10000);
+  }, [userName, playAlertSound, showNotification]);
+
+  const dismissAlert = useCallback(() => {
+    setShowAlert(false);
+    setAlertSender("");
+  }, []);
+
+  const reconnect = useCallback(async () => {
+    try {
+      const netInfo = await NetInfo.fetch();
+      const ipAddress = await Network.getIpAddressAsync();
+      const isWifi = netInfo.type === NetInfoStateType.wifi;
+      const signalStrength = calculateSignalStrength(netInfo);
+
+      setIsConnected(isWifi);
+      setNetworkState({
+        isWiFi: isWifi,
+        ssid: getNetworkSSID(netInfo),
+        strength: signalStrength,
+        isInternetReachable: netInfo.isInternetReachable || false,
+        ipAddress,
+      });
+
+      if (isWifi && userName) {
+        await showNotification(`${userName} se ha conectado a la red`);
       }
     } catch (error) {
       console.error("Reconnection failed:", error);
     }
-  };
-
-  const notifyOthers = async (
-    action: "connected" | "disconnected" | "alert"
-  ) => {
-    if (!userName) return;
-
-    // Show local notification
-    let notificationMessage = "";
-    switch (action) {
-      case "connected":
-        notificationMessage = `${userName} se ha conectado a la red`;
-        break;
-      case "disconnected":
-        notificationMessage = `${userName} se ha desconectado de la red`;
-        break;
-      case "alert":
-        notificationMessage = `¡ALERTA! enviada por ${userName}`;
-        break;
-    }
-
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: "FireTeam",
-        body: notificationMessage,
-        sound: true,
-      },
-      trigger: null,
-    });
-  };
-
-  const sendAlert = async () => {
-    await notifyOthers("alert");
-  };
+  }, [userName, showNotification]);
 
   // Update offline status when app is closed or backgrounded
   useEffect(() => {
     const handleAppStateChange = async () => {
-      await notifyOthers("disconnected");
+      if (userName) {
+        await showNotification(`${userName} se ha desconectado de la red`);
+      }
     };
 
-    // Add app state change listener
     const subscription = NetInfo.addEventListener((state) => {
       if (!state.isConnected && userName) {
         handleAppStateChange();
@@ -261,7 +318,7 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
       subscription();
       handleAppStateChange();
     };
-  }, [userName]);
+  }, [userName, showNotification]);
 
   return (
     <NetworkContext.Provider
@@ -273,6 +330,9 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
         sendAlert,
         connectedUsers,
         reconnect,
+        showAlert,
+        alertSender,
+        dismissAlert,
       }}
     >
       {children}
