@@ -7,8 +7,9 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
 } from "react-native";
-import { useState, useCallback } from "react";
+import { useCallback } from "react";
 import Colors from "../../constants/Colors";
+import { useNetwork } from "../../context/NetworkContext";
 import { ThemedText } from "../../components/ThemedText";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -16,13 +17,18 @@ import * as Haptics from "expo-haptics";
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
-  const [deviceId, setDeviceId] = useState("");
+  const { userName, setUserName, isConnected, sendAlert } = useNetwork();
 
   const handleSave = useCallback(() => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    // TODO: Save the user name to the device storage
     Keyboard.dismiss();
-    // TODO: Implement save functionality
-  }, [deviceId]);
+  }, []);
+
+  const handleAlert = useCallback(async () => {
+    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    await sendAlert();
+  }, [sendAlert]);
 
   const dismissKeyboard = useCallback(() => {
     Keyboard.dismiss();
@@ -34,15 +40,13 @@ export default function SettingsScreen() {
         <View style={styles.header}>
           <ThemedText style={styles.title}>Configuración</ThemedText>
           <ThemedText style={styles.subtitle}>
-            Configura los ajustes de tu dispositivo
+            Configura los ajustes de tu dispositivo XD
           </ThemedText>
         </View>
 
         <View style={styles.section}>
           <View style={styles.inputContainer}>
-            <ThemedText style={styles.label}>
-              Identificador del Dispositivo
-            </ThemedText>
+            <ThemedText style={styles.label}>Tu Nombre</ThemedText>
             <View style={styles.inputWrapper}>
               <Ionicons
                 name="wifi"
@@ -52,9 +56,9 @@ export default function SettingsScreen() {
               />
               <TextInput
                 style={styles.input}
-                value={deviceId}
-                onChangeText={setDeviceId}
-                placeholder="Ingresa un nombre único"
+                value={userName}
+                onChangeText={setUserName}
+                placeholder="Ingresa tu nombre"
                 placeholderTextColor="rgba(255,255,255,0.5)"
                 selectionColor={Colors.secondary}
                 returnKeyType="done"
@@ -66,15 +70,30 @@ export default function SettingsScreen() {
             </ThemedText>
           </View>
 
-          <TouchableOpacity
-            style={styles.saveButton}
-            onPress={handleSave}
-            activeOpacity={0.8}
-          >
-            <ThemedText style={styles.saveButtonText}>
-              Guardar Cambios
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity
+              style={[styles.button, styles.saveButton]}
+              onPress={handleSave}
+              activeOpacity={0.8}
+            >
+              <ThemedText style={styles.buttonText}>Guardar nombre</ThemedText>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.button, styles.alertButton]}
+              onPress={handleAlert}
+              activeOpacity={0.8}
+              disabled={!userName || !isConnected}
+            >
+              <ThemedText style={styles.buttonText}>Enviar Alerta</ThemedText>
+            </TouchableOpacity>
+          </View>
+
+          {!isConnected && (
+            <ThemedText style={styles.networkWarning}>
+              No estás conectado a la red WiFi del equipo
             </ThemedText>
-          </TouchableOpacity>
+          )}
         </View>
 
         <View style={styles.footer}>
@@ -140,13 +159,16 @@ const styles = StyleSheet.create({
     opacity: 0.6,
     marginTop: 8,
   },
-  saveButton: {
-    backgroundColor: Colors.secondary,
-    borderRadius: 12,
+  buttonContainer: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  button: {
+    flex: 1,
     height: 50,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: Colors.secondary,
     shadowOffset: {
       width: 0,
       height: 4,
@@ -155,10 +177,24 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
-  saveButtonText: {
+  saveButton: {
+    backgroundColor: Colors.secondary,
+    shadowColor: Colors.secondary,
+  },
+  alertButton: {
+    backgroundColor: "#dc3545",
+    shadowColor: "#dc3545",
+  },
+  buttonText: {
     color: "#fff",
     fontSize: 16,
     fontWeight: "600",
+  },
+  networkWarning: {
+    color: "#dc3545",
+    fontSize: 14,
+    marginTop: 12,
+    textAlign: "center",
   },
   footer: {
     marginTop: "auto",
