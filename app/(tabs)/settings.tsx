@@ -45,7 +45,7 @@ export default function SettingsScreen() {
             </ThemedText>
             <View style={styles.inputWrapper}>
               <Ionicons
-                name="bluetooth"
+                name="wifi"
                 size={20}
                 color={Colors.secondary}
                 style={styles.inputIcon}
