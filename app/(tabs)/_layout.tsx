@@ -87,6 +87,15 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="network"
+        options={{
+          title: "Red",
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="people-outline" size={26} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="settings"
         options={{
           title: "Ajustes",
