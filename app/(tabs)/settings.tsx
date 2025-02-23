@@ -9,26 +9,20 @@ import {
 } from "react-native";
 import { useCallback } from "react";
 import Colors from "../../constants/Colors";
-import { useNetwork } from "../../context/NetworkContext";
 import { ThemedText } from "../../components/ThemedText";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
+import { useNetwork } from "../../context/NetworkContext";
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
-  const { userName, setUserName, isConnected, sendAlert } = useNetwork();
+  const { userName, setUserName, networkState, connectedUsers } = useNetwork();
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    // TODO: Save the user name to the device storage
     Keyboard.dismiss();
   }, []);
-
-  const handleAlert = useCallback(async () => {
-    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    await sendAlert();
-  }, [sendAlert]);
 
   const dismissKeyboard = useCallback(() => {
     Keyboard.dismiss();
@@ -40,16 +34,16 @@ export default function SettingsScreen() {
         <View style={styles.header}>
           <ThemedText style={styles.title}>Configuración</ThemedText>
           <ThemedText style={styles.subtitle}>
-            Configura los ajustes de tu dispositivo XD
+            Configura los ajustes de tu dispositivo
           </ThemedText>
         </View>
 
         <View style={styles.section}>
           <View style={styles.inputContainer}>
-            <ThemedText style={styles.label}>Tu Nombre</ThemedText>
+            <ThemedText style={styles.label}>Nombre de Usuario</ThemedText>
             <View style={styles.inputWrapper}>
               <Ionicons
-                name="wifi"
+                name="person"
                 size={20}
                 color={Colors.secondary}
                 style={styles.inputIcon}
@@ -66,34 +60,69 @@ export default function SettingsScreen() {
               />
             </View>
             <ThemedText style={styles.helper}>
-              Este nombre será visible para otros dispositivos en la red
+              Tu nombre será visible para otros usuarios de FireTeam en la red
             </ThemedText>
           </View>
 
-          <View style={styles.buttonContainer}>
-            <TouchableOpacity
-              style={[styles.button, styles.saveButton]}
-              onPress={handleSave}
-              activeOpacity={0.8}
-            >
-              <ThemedText style={styles.buttonText}>Guardar nombre</ThemedText>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.button, styles.alertButton]}
-              onPress={handleAlert}
-              activeOpacity={0.8}
-              disabled={!userName || !isConnected}
-            >
-              <ThemedText style={styles.buttonText}>Enviar Alerta</ThemedText>
-            </TouchableOpacity>
+          <View style={styles.networkInfo}>
+            <ThemedText style={styles.networkInfoTitle}>
+              Estado de Red
+            </ThemedText>
+            <View style={styles.networkInfoRow}>
+              <Ionicons
+                name={networkState.isWiFi ? "wifi" : "wifi-outline"}
+                size={20}
+                color={networkState.isWiFi ? Colors.secondary : "#666"}
+              />
+              <ThemedText style={styles.networkInfoText}>
+                {networkState.isWiFi
+                  ? `Conectado a ${networkState.ssid || "WiFi"}`
+                  : "No conectado a WiFi"}
+              </ThemedText>
+            </View>
           </View>
 
-          {!isConnected && (
-            <ThemedText style={styles.networkWarning}>
-              No estás conectado a la red WiFi del equipo
-            </ThemedText>
+          {networkState.isWiFi && (
+            <View style={styles.connectedUsers}>
+              <ThemedText style={styles.connectedUsersTitle}>
+                Usuarios en la Red
+              </ThemedText>
+              {connectedUsers
+                .filter((user) => user.isOnline)
+                .map((user) => (
+                  <View key={user.deviceId} style={styles.userRow}>
+                    <Ionicons
+                      name="person-circle-outline"
+                      size={24}
+                      color={Colors.secondary}
+                      style={styles.userIcon}
+                    />
+                    <ThemedText style={styles.userName}>{user.name}</ThemedText>
+                    <View
+                      style={[
+                        styles.signalIndicator,
+                        { opacity: user.signalStrength / 100 },
+                      ]}
+                    />
+                  </View>
+                ))}
+              {connectedUsers.filter((user) => user.isOnline).length === 0 && (
+                <ThemedText style={styles.noUsersText}>
+                  No hay otros usuarios conectados
+                </ThemedText>
+              )}
+            </View>
           )}
+
+          <TouchableOpacity
+            style={styles.saveButton}
+            onPress={handleSave}
+            activeOpacity={0.8}
+          >
+            <ThemedText style={styles.saveButtonText}>
+              Guardar Cambios
+            </ThemedText>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.footer}>
@@ -159,16 +188,13 @@ const styles = StyleSheet.create({
     opacity: 0.6,
     marginTop: 8,
   },
-  buttonContainer: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  button: {
-    flex: 1,
-    height: 50,
+  saveButton: {
+    backgroundColor: Colors.secondary,
     borderRadius: 12,
+    height: 50,
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: Colors.secondary,
     shadowOffset: {
       width: 0,
       height: 4,
@@ -177,24 +203,10 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
-  saveButton: {
-    backgroundColor: Colors.secondary,
-    shadowColor: Colors.secondary,
-  },
-  alertButton: {
-    backgroundColor: "#dc3545",
-    shadowColor: "#dc3545",
-  },
-  buttonText: {
+  saveButtonText: {
     color: "#fff",
     fontSize: 16,
     fontWeight: "600",
-  },
-  networkWarning: {
-    color: "#dc3545",
-    fontSize: 14,
-    marginTop: 12,
-    textAlign: "center",
   },
   footer: {
     marginTop: "auto",
@@ -203,5 +215,60 @@ const styles = StyleSheet.create({
   version: {
     opacity: 0.5,
     fontSize: 14,
+  },
+  networkInfo: {
+    marginBottom: 24,
+  },
+  networkInfoTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 12,
+  },
+  networkInfoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 12,
+    padding: 12,
+  },
+  networkInfoText: {
+    marginLeft: 12,
+    fontSize: 14,
+  },
+  connectedUsers: {
+    marginBottom: 24,
+  },
+  connectedUsersTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 12,
+  },
+  userRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 8,
+  },
+  userIcon: {
+    marginRight: 12,
+  },
+  userName: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  signalIndicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.secondary,
+  },
+  noUsersText: {
+    fontSize: 14,
+    opacity: 0.6,
+    textAlign: "center",
+    marginTop: 12,
   },
 });

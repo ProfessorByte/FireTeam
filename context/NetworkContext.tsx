@@ -1,23 +1,51 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+} from "react";
 import * as Network from "expo-network";
 import * as Notifications from "expo-notifications";
 import * as Haptics from "expo-haptics";
+import NetInfo, {
+  NetInfoStateType,
+  NetInfoState,
+} from "@react-native-community/netinfo";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 interface ConnectedUser {
   name: string;
-  signalStrength: number; // 0-100
+  signalStrength: number;
   lastSeen: number;
+  deviceId: string;
+  isOnline: boolean;
+  ipAddress?: string;
+}
+
+interface NetworkState {
+  isWiFi: boolean;
+  ssid?: string | null;
+  strength: number;
+  isInternetReachable: boolean;
+  ipAddress?: string;
 }
 
 interface NetworkContextType {
   userName: string;
   setUserName: (name: string) => void;
   isConnected: boolean;
+  networkState: NetworkState;
   sendAlert: () => Promise<void>;
   connectedUsers: ConnectedUser[];
+  reconnect: () => Promise<void>;
 }
 
 const NetworkContext = createContext<NetworkContextType | undefined>(undefined);
+const STORAGE_KEY = "@FireTeam:userData";
+const BROADCAST_INTERVAL = 2000;
+const USER_TIMEOUT = 10000;
 
 // Configure notifications
 Notifications.setNotificationHandler({
@@ -28,123 +56,184 @@ Notifications.setNotificationHandler({
   }),
 });
 
+const generateDeviceId = () => {
+  return Math.random().toString(36).substring(2) + Date.now().toString(36);
+};
+
+const DEVICE_ID = generateDeviceId();
+
+// Helper function to calculate signal strength
+const calculateSignalStrength = (state: NetInfoState): number => {
+  if (state.type !== NetInfoStateType.wifi || !state.isConnected) {
+    return 0;
+  }
+
+  // If connected to WiFi and internet is reachable, consider it strong connection
+  if (state.isInternetReachable) {
+    return 100;
+  }
+
+  // If WiFi is connected but internet is not reachable, consider it medium strength
+  return 60;
+};
+
+// Helper function to get SSID from network state
+const getNetworkSSID = (state: NetInfoState): string | null => {
+  if (state.type === NetInfoStateType.wifi && "details" in state) {
+    return (state.details as any)?.ssid || null;
+  }
+  return null;
+};
+
 export function NetworkProvider({ children }: { children: React.ReactNode }) {
+  const broadcastTimer = useRef<NodeJS.Timeout | null>(null);
   const [userName, setUserName] = useState<string>("");
   const [isConnected, setIsConnected] = useState(false);
   const [connectedUsers, setConnectedUsers] = useState<ConnectedUser[]>([]);
+  const [networkState, setNetworkState] = useState<NetworkState>({
+    isWiFi: false,
+    ssid: null,
+    strength: 0,
+    isInternetReachable: false,
+  });
 
-  // Cleanup inactive users every 30 seconds
+  // Load saved username
   useEffect(() => {
-    const cleanup = setInterval(() => {
-      const now = Date.now();
-      setConnectedUsers((prev) =>
-        prev.filter((user) => now - user.lastSeen < 30000)
-      );
-    }, 30000);
+    AsyncStorage.getItem(STORAGE_KEY).then((savedData) => {
+      if (savedData) {
+        const { name } = JSON.parse(savedData);
+        if (name) setUserName(name);
+      }
+    });
+  }, []);
 
-    return () => clearInterval(cleanup);
+  // Save username changes
+  const handleSetUserName = useCallback((name: string) => {
+    const cleanedName = name.replace(/\s+/g, " ").trim();
+    setUserName(cleanedName);
+    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ name: cleanedName }));
+  }, []);
+
+  // Clean up inactive users
+  const cleanupInactiveUsers = useCallback(() => {
+    const now = Date.now();
+    setConnectedUsers((prev) =>
+      prev.filter((user) => now - user.lastSeen < USER_TIMEOUT)
+    );
   }, []);
 
   useEffect(() => {
-    // Request notification permissions
-    (async () => {
-      const { status } = await Notifications.requestPermissionsAsync();
-      if (status !== "granted") {
-        console.log("Notification permissions not granted");
-      }
-    })();
+    const cleanup = setInterval(cleanupInactiveUsers, 5000);
+    return () => clearInterval(cleanup);
+  }, [cleanupInactiveUsers]);
 
-    // Monitor network state
-    const subscription = Network.addNetworkStateListener((state) => {
-      if (state.type === Network.NetworkStateType.WIFI) {
-        setIsConnected(true);
-        if (userName) {
-          notifyOthers("connected");
-        }
-      } else {
-        setIsConnected(false);
-        if (userName) {
-          notifyOthers("disconnected");
-        }
-      }
-    });
+  // Network monitoring and device discovery
+  useEffect(() => {
+    const updateNetworkInfo = async () => {
+      try {
+        const netInfo = await NetInfo.fetch();
+        const ipAddress = await Network.getIpAddressAsync();
+        const isWifi = netInfo.type === NetInfoStateType.wifi;
+        const signalStrength = calculateSignalStrength(netInfo);
 
-    // Setup notification listener
-    const notificationListener = Notifications.addNotificationReceivedListener(
-      (notification) => {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        setIsConnected(isWifi);
+        setNetworkState({
+          isWiFi: isWifi,
+          ssid: getNetworkSSID(netInfo),
+          strength: signalStrength,
+          isInternetReachable: netInfo.isInternetReachable || false,
+          ipAddress,
+        });
+
+        if (isWifi && userName) {
+          // Update our own status
+          setConnectedUsers((prev) => {
+            const filtered = prev.filter((u) => u.deviceId !== DEVICE_ID);
+            return [
+              ...filtered,
+              {
+                name: userName,
+                signalStrength,
+                lastSeen: Date.now(),
+                deviceId: DEVICE_ID,
+                isOnline: true,
+                ipAddress,
+              },
+            ];
+          });
+        }
+      } catch (error) {
+        console.error("Network update error:", error);
       }
-    );
+    };
+
+    const initialize = async () => {
+      await updateNetworkInfo();
+      broadcastTimer.current = setInterval(
+        updateNetworkInfo,
+        BROADCAST_INTERVAL
+      );
+    };
+
+    if (userName) {
+      initialize();
+    }
 
     return () => {
-      subscription.remove();
-      notificationListener.remove();
+      if (broadcastTimer.current) {
+        clearInterval(broadcastTimer.current);
+        broadcastTimer.current = null;
+      }
     };
   }, [userName]);
 
-  const updateUserSignal = async () => {
-    if (!userName || !isConnected) return;
-
+  const reconnect = async () => {
     try {
-      const networkState = await Network.getNetworkStateAsync();
-      let signalStrength = 100;
+      const netInfo = await NetInfo.fetch();
+      const ipAddress = await Network.getIpAddressAsync();
+      const isWifi = netInfo.type === NetInfoStateType.wifi;
+      const signalStrength = calculateSignalStrength(netInfo);
 
-      if (networkState.type === Network.NetworkStateType.WIFI) {
-        // Simulate signal strength based on isConnected and isInternetReachable
-        signalStrength = networkState.isInternetReachable ? 100 : 60;
-      }
-
-      setConnectedUsers((prev) => {
-        const existing = prev.find((u) => u.name === userName);
-        if (existing) {
-          return prev.map((u) =>
-            u.name === userName
-              ? { ...u, signalStrength, lastSeen: Date.now() }
-              : u
-          );
-        }
-        return [
-          ...prev,
-          { name: userName, signalStrength, lastSeen: Date.now() },
-        ];
+      setIsConnected(isWifi);
+      setNetworkState({
+        isWiFi: isWifi,
+        ssid: getNetworkSSID(netInfo),
+        strength: signalStrength,
+        isInternetReachable: netInfo.isInternetReachable || false,
+        ipAddress,
       });
+
+      if (isWifi && userName) {
+        await notifyOthers("connected");
+      }
     } catch (error) {
-      console.error("Error updating signal strength:", error);
+      console.error("Reconnection failed:", error);
     }
   };
-
-  // Update signal strength periodically
-  useEffect(() => {
-    if (!userName || !isConnected) return;
-
-    updateUserSignal();
-    const interval = setInterval(updateUserSignal, 5000);
-
-    return () => clearInterval(interval);
-  }, [userName, isConnected]);
 
   const notifyOthers = async (
     action: "connected" | "disconnected" | "alert"
   ) => {
     if (!userName) return;
 
-    let message = "";
+    // Show local notification
+    let notificationMessage = "";
     switch (action) {
       case "connected":
-        message = `${userName} se ha conectado a la red`;
+        notificationMessage = `${userName} se ha conectado a la red`;
         break;
       case "disconnected":
-        message = `${userName} se ha desconectado de la red`;
+        notificationMessage = `${userName} se ha desconectado de la red`;
         break;
       case "alert":
-        message = `¡ALERTA! enviada por ${userName}`;
+        notificationMessage = `¡ALERTA! enviada por ${userName}`;
         break;
     }
 
     await Notifications.scheduleNotificationAsync({
       content: {
         title: "FireTeam",
-        body: message,
+        body: notificationMessage,
         sound: true,
       },
       trigger: null,
@@ -155,14 +244,35 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
     await notifyOthers("alert");
   };
 
+  // Update offline status when app is closed or backgrounded
+  useEffect(() => {
+    const handleAppStateChange = async () => {
+      await notifyOthers("disconnected");
+    };
+
+    // Add app state change listener
+    const subscription = NetInfo.addEventListener((state) => {
+      if (!state.isConnected && userName) {
+        handleAppStateChange();
+      }
+    });
+
+    return () => {
+      subscription();
+      handleAppStateChange();
+    };
+  }, [userName]);
+
   return (
     <NetworkContext.Provider
       value={{
         userName,
-        setUserName,
+        setUserName: handleSetUserName,
         isConnected,
+        networkState,
         sendAlert,
         connectedUsers,
+        reconnect,
       }}
     >
       {children}
