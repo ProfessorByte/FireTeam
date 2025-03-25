@@ -2,9 +2,16 @@
 
 [![made with expo](https://img.shields.io/badge/MADE%20WITH%20EXPO-000.svg?style=for-the-badge&logo=expo&labelColor=4630eb&logoWidth=20)](https://github.com/expo/expo)
 
-## 🔥 Hackathon Firebusters 2025
+# 🏆 3rd Place Winner - Hackathon Firebusters 2025!
 
-Hello! 👋 This project was born during the exciting "Hackathon Firebusters" held on February 22-23, 2025. In just 48 hours of intense coding, coffee ☕ and dedication, our team managed to create a partially functional prototype of an application aimed at saving lives.
+<p align="center">
+  <img src="images/FirecraftTeam.jpg" alt="FireTeam at Hackathon Firebusters" width="100%">
+  <em>Our winning team celebrating at Hackathon Firebusters 2025</em>
+</p>
+
+## 🔥 About the Hackathon
+
+Hello! 👋 This project was born during the exciting "Hackathon Firebusters" held on February 22-23, 2025. In just 48 hours of intense coding, coffee ☕ and dedication, our team managed to create a partially functional prototype of an application aimed at saving lives. Our hard work and innovative solution were recognized with the **Third Place** award among all participating teams!
 
 ## 💡 The Problem and Our Solution
 
@@ -57,4 +64,4 @@ This project was made possible through the collaborative effort of:
 
 ## 🌟 Acknowledgments
 
-Special thanks to the Scientific Society of Systems and Computer Engineering Students (SCESI) and Hacklab Brickheads Cochabamba for organizing the Hackathon Firebusters and giving us the opportunity to create something that can make a difference in the lives of our firefighters. And of course, thanks to the entire team for the long hours of coding and incredible energy! 🚀
+Special thanks to the Scientific Society of Systems and Computer Engineering Students - SCESI and Hacklab Brickheads Cochabamba for organizing the Hackathon Firebusters and giving us the opportunity to create something that can make a difference in the lives of our firefighters. And of course, thanks to the entire team for the long hours of coding and incredible energy! 🚀
