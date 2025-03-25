@@ -64,4 +64,4 @@ This project was made possible through the collaborative effort of:
 
 ## 🌟 Acknowledgments
 
-Special thanks to the Scientific Society of Systems and Computer Engineering Students - SCESI and Hacklab Brickheads Cochabamba for organizing the Hackathon Firebusters and giving us the opportunity to create something that can make a difference in the lives of our firefighters. And of course, thanks to the entire team for the long hours of coding and incredible energy! 🚀
+Special thanks to the Scientific Society of Systems and Computer Engineering Students (SCESI) and Hacklab Brickheads Cochabamba for organizing the Hackathon Firebusters and giving us the opportunity to create something that can make a difference in the lives of our firefighters. And of course, thanks to the entire team for the long hours of coding and incredible energy! 🚀
