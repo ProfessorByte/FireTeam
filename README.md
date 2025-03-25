@@ -11,7 +11,7 @@
 
 ## 🔥 About the Hackathon
 
-Hello! 👋 This project was born during the exciting "Hackathon Firebusters" held on February 22-23, 2025. In just 48 hours of intense coding, coffee ☕ and dedication, our team managed to create a partially functional prototype of an application aimed at saving lives. Our hard work and innovative solution were recognized with the **Third Place** award among all participating teams!
+Hello! 👋 This project was born during the exciting "Hackathon Firebusters" held on February 22-23, 2025. In just 31 hours of intense coding, coffee ☕ and dedication, our team managed to create a partially functional prototype of an application aimed at saving lives. Our hard work and innovative solution were recognized with the **Third Place** award among all participating teams!
 
 ## 💡 The Problem and Our Solution
 
