@@ -1,50 +1,60 @@
-# Welcome to your Expo app 👋
+# 🚒 FireTeam App
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+[![made with expo](https://img.shields.io/badge/MADE%20WITH%20EXPO-000.svg?style=for-the-badge&logo=expo&labelColor=4630eb&logoWidth=20)](https://github.com/expo/expo)
 
-## Get started
+## 🔥 Hackathon Firebusters 2025
 
-1. Install dependencies
+Hello! 👋 This project was born during the exciting "Hackathon Firebusters" held on February 22-23, 2025. In just 48 hours of intense coding, coffee ☕ and dedication, our team managed to create a partially functional prototype of an application aimed at saving lives.
+
+## 💡 The Problem and Our Solution
+
+In the Bolivian Amazon, forest fires are a constant threat that endangers not only our precious ecosystems but also the lives of the brave firefighters who combat them. FireTeam was created as a solution to protect those who protect us.
+
+### How does it work? 🤔
+
+FireTeam is a mobile app specifically designed for firefighting teams that:
+
+- 🚨 Sends automatic early alerts if a team member disconnects from the hotspot network
+- 🆘 Allows sending manual alerts in case of emergency
+- 📡 Monitors WiFi connection quality of each member in real-time
+- 🔄 Works without internet, using local hotspot networks
+
+## 🛠️ Technology Stack
+
+- 📱 **React Native** with **Expo** as the main framework
+- 🌐 P2P system over local network using `react-native-udp`
+- 🔔 Notifications with `expo-notifications`
+- 📡 Network monitoring with `@react-native-community/netinfo` and `expo-network`
+- 🎯 TypeScript for safer and maintainable code
+- 💅 Modern and responsive UI with native components
+
+## 🚀 Installation and Usage
+
+1. Clone the repository:
 
    ```bash
-   npm install
+   git clone [repository URL]
    ```
 
-2. Start the app
+2. Install dependencies:
 
    ```bash
-    npx expo start
+   pnpm install
    ```
 
-In the output, you'll find options to open the app in a
+3. Start the application:
+   ```bash
+   pnpm start
+   ```
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## 👥 Our Team
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+This project was made possible through the collaborative effort of:
 
-## Get a fresh project
+- 🧑‍💻 **Pablo Jesus Pardo Alcocer** - Computer Engineer
+- 👩‍💻 **Melany Denisse Vergara Zeballos** - Chemical Engineering Student
+- 👨‍💻 **Henry Brian Aspeti Vasquez** - Systems Engineering Student
 
-When you're ready, run:
+## 🌟 Acknowledgments
 
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Special thanks to the Scientific Society of Systems and Computer Engineering Students (SCESI) and Hacklab Brickheads Cochabamba for organizing the Hackathon Firebusters and giving us the opportunity to create something that can make a difference in the lives of our firefighters. And of course, thanks to the entire team for the long hours of coding and incredible energy! 🚀
