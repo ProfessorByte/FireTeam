@@ -40,7 +40,7 @@ FireTeam is a mobile app specifically designed for firefighting teams that:
 1. Clone the repository:
 
    ```bash
-   git clone [repository URL]
+   git clone https://github.com/ProfessorByte/FireTeam.git
    ```
 
 2. Install dependencies:
