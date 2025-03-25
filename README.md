@@ -5,7 +5,7 @@
 # 🏆 3rd Place Winner - Hackathon Firebusters 2025!
 
 <p align="center">
-  <img src="images/FirecraftTeam.jpg" alt="FireTeam at Hackathon Firebusters" width="100%">
+  <img src="images/FirecraftTeam.png" alt="FireTeam at Hackathon Firebusters" width="100%">
   <em>Our winning team celebrating at Hackathon Firebusters 2025</em>
 </p>
 
